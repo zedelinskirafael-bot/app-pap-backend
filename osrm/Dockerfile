@@ -1,5 +1,5 @@
 FROM debian:bookworm-slim AS downloader
-ARG OSRM_PBF_URL=https://download.geofabrik.de/south-america/brazil/sul/parana-latest.osm.pbf
+ARG OSRM_PBF_URL=https://download.geofabrik.de/south-america/brazil/sul-latest.osm.pbf
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl ca-certificates osmium-tool && \
     rm -rf /var/lib/apt/lists/*
