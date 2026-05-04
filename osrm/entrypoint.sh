@@ -10,10 +10,10 @@ cd "$DATA_DIR"
 if [ ! -f "${BASENAME}.osrm.mldgr" ]; then
   echo "[osrm] Pre-processamento nao encontrado. Iniciando..."
 
-  if [ ! -f "${BASENAME}.osm.pbf" ]; then
-    echo "[osrm] Copiando PBF da imagem (/seed/map.osm.pbf)"
-    cp /seed/map.osm.pbf "${BASENAME}.osm.pbf"
-  fi
+  # Sempre usa o PBF da imagem (mais recente apos cada build)
+  rm -f "${BASENAME}.osm.pbf" "${BASENAME}.osrm"*
+  echo "[osrm] Copiando PBF da imagem (/seed/map.osm.pbf)"
+  cp /seed/map.osm.pbf "${BASENAME}.osm.pbf"
 
   echo "[osrm] osrm-extract..."
   osrm-extract -p "$PROFILE" "${BASENAME}.osm.pbf"
