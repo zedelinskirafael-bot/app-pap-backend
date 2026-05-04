@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 
-REGION_URL="${OSRM_PBF_URL:-https://download.geofabrik.de/south-america/brazil/sul/parana-latest.osm.pbf}"
 PROFILE="${OSRM_PROFILE:-/opt/car.lua}"
 DATA_DIR="/data"
 BASENAME="map"
@@ -12,8 +11,8 @@ if [ ! -f "${BASENAME}.osrm.mldgr" ]; then
   echo "[osrm] Pre-processamento nao encontrado. Iniciando..."
 
   if [ ! -f "${BASENAME}.osm.pbf" ]; then
-    echo "[osrm] Baixando PBF de $REGION_URL"
-    curl -L --fail -o "${BASENAME}.osm.pbf" "$REGION_URL"
+    echo "[osrm] Copiando PBF da imagem (/seed/map.osm.pbf)"
+    cp /seed/map.osm.pbf "${BASENAME}.osm.pbf"
   fi
 
   echo "[osrm] osrm-extract..."
