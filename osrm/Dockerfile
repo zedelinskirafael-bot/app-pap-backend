@@ -10,7 +10,7 @@ RUN curl -L --fail --retry 5 --retry-delay 5 -o orig.osm.pbf "$OSRM_PBF_URL" && 
     SIZE=$(stat -c%s orig.osm.pbf) && \
     echo "Baixado $SIZE bytes" && \
     if [ "$SIZE" -lt 10000000 ]; then echo "PBF muito pequeno"; head -c 500 orig.osm.pbf; exit 1; fi && \
-    osmium extract -b "$OSRM_BBOX" orig.osm.pbf -o map.osm.pbf --overwrite && \
+    osmium extract --strategy simple -b "$OSRM_BBOX" orig.osm.pbf -o map.osm.pbf --overwrite && \
     rm orig.osm.pbf && \
     ls -lh map.osm.pbf
 
