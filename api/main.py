@@ -90,6 +90,30 @@ async def osrm_table(coords: List[tuple], sources: Optional[List[int]] = None,
         return data
 
 
+def agrupar_por_coord(clientes: List[Cliente]) -> tuple:
+    """Agrupa clientes com mesma lat/lng (arredondado a 6 casas) em super-nos.
+    Retorna: (representantes, mapa[rep_id] -> [ids_do_grupo, na ordem original]).
+    Assim clientes no mesmo endereco entram na matriz OSRM uma unica vez e
+    saem na sequencia como consecutivos."""
+    grupos: dict = {}
+    ordem_chaves: List[tuple] = []
+    for c in clientes:
+        chave = (round(c.lat, 6), round(c.lng, 6))
+        if chave not in grupos:
+            grupos[chave] = []
+            ordem_chaves.append(chave)
+        grupos[chave].append(c)
+
+    representantes: List[Cliente] = []
+    mapa: dict = {}
+    for chave in ordem_chaves:
+        membros = grupos[chave]
+        rep = membros[0]
+        representantes.append(rep)
+        mapa[rep.id] = [m.id for m in membros]
+    return representantes, mapa
+
+
 def datas_validas(inicio: date, qtd: int, incluir_sabado: bool) -> List[date]:
     """Gera N datas pulando domingo (sempre) e sabado (opcional)."""
     resultado: List[date] = []
@@ -127,7 +151,7 @@ def resolver_tsp(matriz: List[List[int]], inicio: int = 0) -> List[int]:
     params = pywrapcp.DefaultRoutingSearchParameters()
     params.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
     params.local_search_metaheuristic = routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
-    params.time_limit.seconds = 10
+    params.time_limit.seconds = 30
 
     sol = routing.SolveWithParameters(params)
     if sol is None:
@@ -240,16 +264,30 @@ async def otimizar_dia(payload: OtimizarDiaInput):
     if not payload.clientes:
         return OtimizarDiaOutput(clientes=[])
 
-    coords = [(payload.origem.lat, payload.origem.lng)] + [(c.lat, c.lng) for c in payload.clientes]
+    if len(payload.clientes) > 80:
+        raise HTTPException(
+            400,
+            f"Muitos clientes ({len(payload.clientes)}). Limite: 80 por dia."
+        )
+
+    # Agrupa por coord: clientes no mesmo endereco entram na matriz uma vez so
+    # e saem consecutivos no resultado.
+    representantes, grupos = agrupar_por_coord(payload.clientes)
+
+    coords = [(payload.origem.lat, payload.origem.lng)] + [(c.lat, c.lng) for c in representantes]
     tabela = await osrm_table(coords)
     duracoes = tabela["durations"]
     matriz = [[int(round(d)) if d is not None else 999999 for d in linha] for linha in duracoes]
 
     rota = resolver_tsp(matriz, inicio=0)
-    # Remove o deposito (indice 0) e mapeia para clientes
     sequencia = [idx for idx in rota if idx != 0]
-    saida = [
-        ClienteOrdenado(id=payload.clientes[idx - 1].id, ordem=ordem + 1)
-        for ordem, idx in enumerate(sequencia)
-    ]
+
+    saida: List[ClienteOrdenado] = []
+    ordem = 1
+    for idx in sequencia:
+        rep = representantes[idx - 1]
+        for cid in grupos[rep.id]:
+            saida.append(ClienteOrdenado(id=cid, ordem=ordem))
+            ordem += 1
     return OtimizarDiaOutput(clientes=saida)
+
