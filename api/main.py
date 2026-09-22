@@ -114,6 +114,10 @@ class TrajetoOutput(BaseModel):
     linha: List[List[float]]  # [[lat, lng], ...] — ordem que o Google Maps le
     distancia_m: float
     duracao_s: float
+    # Nomes das vias percorridas, na ordem. E o que deixa o corredor pegar so
+    # quem mora NA RUA do tracado: no centro a rua de tras fica a 30 m, entao
+    # distancia sozinha nunca separa uma da outra.
+    ruas: List[str] = []
 
 
 @app.get("/health")
@@ -381,6 +385,8 @@ async def trajeto(payload: TrajetoInput):
         # sem isto o OSRM se recusa a inverter o sentido num ponto do meio e da
         # a volta no quarteirao quando o consultor clica dos dois lados da rua
         "continue_straight": "false",
+        # steps traz o nome de cada via percorrida (ver `ruas` na saida)
+        "steps": "true",
     }
 
     try:
@@ -440,10 +446,21 @@ async def trajeto(payload: TrajetoInput):
             "um corredor de visitas. Tente pontos mais perto ou do mesmo lado.",
         )
 
+    # Nome de cada via percorrida, sem repetir e na ordem em que aparecem.
+    # Trecho sem nome (passagem de pedestre, praca, escadaria) simplesmente nao
+    # entra na lista -- nao ha nome pra casar com o cadastro do cliente.
+    ruas: List[str] = []
+    for leg in rota.get("legs") or []:
+        for passo in (leg or {}).get("steps") or []:
+            nome = ((passo or {}).get("name") or "").strip()
+            if nome and nome not in ruas:
+                ruas.append(nome)
+
     return TrajetoOutput(
         # OSRM devolve [lng, lat]; o front le [lat, lng]
         linha=[[float(c[1]), float(c[0])] for c in coords],
         distancia_m=distancia,
         duracao_s=float(rota.get("duration") or 0.0),
+        ruas=ruas,
     )
 
