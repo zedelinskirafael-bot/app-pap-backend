@@ -105,8 +105,13 @@ class PontoTrajeto(BaseModel):
 
 
 class TrajetoInput(BaseModel):
-    # 25 pontos ja e um corredor enorme; o limite e contra payload abusivo
-    pontos: List[PontoTrajeto] = Field(min_length=2, max_length=25)
+    # Teto do proprio osrm-routed: acima de 500 coordenadas ele recusa com
+    # "TooBig" (medido na KVM8 em 02/10/26), e aquele 400 chegaria ao consultor
+    # como "Nao achei caminho por rua entre esses pontos" -- mensagem que nao
+    # explica nada. Recusar aqui devolve 422 com o motivo certo. O limite segue
+    # segurando payload abusivo: o endpoint e publico, sem login e com CORS *.
+    # Mesmo numero em MAX_PONTOS (useCorredor.ts) -- mudou um, mude o outro.
+    pontos: List[PontoTrajeto] = Field(min_length=2, max_length=500)
     modo: Literal["pe", "carro"] = "pe"
 
 
